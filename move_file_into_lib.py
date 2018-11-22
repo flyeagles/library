@@ -2,10 +2,40 @@
 
 import argparse
 import os
+import pickle
 
 MAX_FILES_FOLDER = 500
+MOVE_TARGET_LIB_DATA_FILE = 'lib_move_target.pkl'
+
+def get_file_surfix(fname):
+    try:
+        pos = fname.rindex('.')
+        return fname[pos+1:].lower()
+    except ValueError:
+        return ''
+
+def save_target_folder_data(target_folder_data):
+    with open(MOVE_TARGET_LIB_DATA_FILE, 'wb') as WFILE:
+        pickle.dump(target_folder_data, WFILE)
+
 
 def get_target_folder_files(to_folder):
+    if os.path.exists(MOVE_TARGET_LIB_DATA_FILE):
+        with open(MOVE_TARGET_LIB_DATA_FILE, 'rb') as RFILE:
+            target_folder_data = pickle.load(RFILE)
+    else:
+        target_folder_data = get_target_folder_files_from_system(to_folder)
+        save_target_folder_data(target_folder_data)
+
+    return target_folder_data
+
+
+def get_target_folder_files_from_system(to_folder):
+    '''
+    return (file_data, start_fd, file_count_in_fd)
+    Structure of file_data:
+        map: file_name --> (size, path to file)
+    '''
     all_files = os.walk(to_folder)
     file_stats = {}
     folder_file_count = {}
@@ -30,18 +60,18 @@ def get_target_folder_files(to_folder):
     return file_stats, int(tail), folder_file_count[target_subfolders[0]]
 
 def handle_duplicated_files(files_in_lib, a_file, root, identical_files):
+    this_size = os.path.getsize(os.path.join(root, a_file))
     if a_file in files_in_lib:
-        file_stat = os.stat(os.path.join(root, a_file))
-        if file_stat.st_size == files_in_lib[a_file][0]:
-            print("---- Identical file {fn} at {fd}".format(fn=a_file,
-                    fd=root))
+        if this_size == files_in_lib[a_file][0]:
+            print("---- Identical file {fn} at {fd} and {lpath}".format(fn=a_file,
+                    fd=root, lpath=files_in_lib[a_file][1]))
             identical_files.append(os.path.join(root, a_file))
         else:
-            print("Duplicated file {fn} at {fd}".format(fn=a_file,
-                    fd=root))
+            print("Duplicated file {fn} at {fd} and {lpath}".format(fn=a_file,
+                    fd=root, lpath=files_in_lib[a_file][1]))
         
-        return True
-    return False
+        return True, this_size
+    return False, this_size
 
 def get_folder_id_count(start_fid, file_count):
     if file_count < MAX_FILES_FOLDER:
@@ -49,7 +79,7 @@ def get_folder_id_count(start_fid, file_count):
     else:
         return start_fid + 1, 1
 
-def move_from_to(from_folder, to_folder, delidentical):
+def move_from_to(from_folder, to_folder, delidentical, movezip):
 
     files_in_lib, start_fid, file_count = get_target_folder_files(to_folder)
     folder_name = '{:04d}'.format(start_fid)
@@ -58,10 +88,17 @@ def move_from_to(from_folder, to_folder, delidentical):
     all_files = os.walk(from_folder)
     identical_files = []
     moved_count = 0
+    zipped = False
     for root, dirs, files in all_files:
         for a_file in files:
+            surfix = get_file_surfix(a_file)
+            if surfix == 'rar' or (surfix == 'zip' and not movezip):
+                print('Skip zipped file:', a_file)
+                zipped = True
+                continue
+
             #print(root, a_file)
-            duplicated = handle_duplicated_files(files_in_lib, a_file, root, identical_files)
+            duplicated, this_size = handle_duplicated_files(files_in_lib, a_file, root, identical_files)
             if duplicated:
                 continue
             
@@ -73,10 +110,17 @@ def move_from_to(from_folder, to_folder, delidentical):
                 print("====Found targt file existing! {f}".format(f=new_file_path))
             else:
                 os.renames(os.path.join(root, a_file), new_file_path)
+                # update files_in_lib map
+                files_in_lib[a_file] = (this_size, str(os.path.join(to_folder, folder_name)))
                 moved_count += 1
 
     print("Moved total {d} files.".format(d=moved_count))
     print('Folder', folder_name, 'has', file_count, 'files.')
+
+    save_target_folder_data((files_in_lib, start_fid, file_count))
+
+    if zipped:
+        print("You can use '--movezip' command option to force move .zip files.")
 
     if delidentical and len(identical_files) > 0:
         print("========Deleting following identical files!")
@@ -105,6 +149,11 @@ if __name__ == "__main__":
                            action='store_true',
                            help='Delete identical files. Default is false.')
 
+    argparser.add_argument("--movezip", dest='movezip', 
+                           default=False, required=False,
+                           action='store_true',
+                           help='Force move zip files. Default is false.')
+
     argparser.add_argument("--cleanlog", dest='cleanlog', 
                            default=False, required=False,
                            action='store_true',
@@ -119,4 +168,4 @@ if __name__ == "__main__":
     if answer != 'Y' and answer != 'y':
         exit(0)
 
-    move_from_to(args.fromdir, args.targetdir, args.delidentical)
+    move_from_to(args.fromdir, args.targetdir, args.delidentical, args.movezip)
