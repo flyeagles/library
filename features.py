@@ -1,3 +1,5 @@
+# by yluo, November 2018
+
 import os
 import datetime
 import time
@@ -33,7 +35,7 @@ class WatchClip(threading.Thread):
         print("Ready to watch clip change.")
         while sharevars.not_quit:
             clip_text = escape_slash(pyperclip.paste())
-            if clip_text != old_clip:
+            if clip_text != old_clip and clip_text.strip() != '':
                 old_clip = clip_text
                 self.string_entry.delete(0, tk.END)
                 self.string_entry.insert(tk.END, clip_text)
@@ -41,7 +43,7 @@ class WatchClip(threading.Thread):
 
             time.sleep(0.3)
 
-
+ 
 isascii = lambda s: len(s) == len(s.encode())
 
 syms = r' |\(|\)|\[|\]|\.|_|-|\+|\?|\'|（|）|：|，|、|《|》|·|“|”|？|【|】'
@@ -80,10 +82,12 @@ def df_filter_func(df, tags, series_func):
     return result_series
 
 def df_filter_and_or(df, set_of_set_tags):
-    result_series = df_filter_func(df, next(iter(set_of_set_tags)), series_or)
-    for set_tags in set_of_set_tags:
-        # first level is union
-        result_series = series_and(result_series, df_filter_func(df, set_tags, series_or))
+    set_iter = iter(set_of_set_tags)
+    result_series = df_filter_func(df, next(set_iter), series_or)
+    for _ in range(len(set_of_set_tags) - 1):
+        # first level is union, so use "series_or"
+        # second level is join, so use "sereies_and"
+        result_series = series_and(result_series, df_filter_func(df, next(set_iter), series_or))
     
     return result_series
 
@@ -123,38 +127,38 @@ def search_books_with_terms_func(tags, set_func, df_filter):
             sharevars.all_book_tree_view.filter_df(df_filter, tags, columns)],
             ignore_index=True)
 
+
+def get_tag_mapped_files_or(set_tags):
+    set_iter = iter(set_tags)
+    result_file_set = sharevars.tag_file_dict.get(next(set_iter), set())
+    for _ in range(len(set_tags)-1):
+        file_set = sharevars.tag_file_dict.get(next(set_iter), set())
+        result_file_set = result_file_set.union(file_set) 
+
+    return result_file_set
+
 def search_books_with_terms_and_or(set_of_set_tags):
     '''
     First search title in tag_file_dict,
     then use string matching.
     '''
-    result_file_set = set()
-    initial = True
-    for set_tags in set_of_set_tags:
-        for tag in tags:
-            file_set = sharevars.tag_file_dict.get(tag, set())
-            if initial:
-                result_file_set = file_set
-                initial = False
-            else:
-                result_file_set = set_func(result_file_set, file_set) 
-                if len(result_file_set) == 0:
-                    # no match already. Break out of loop now.
-                    break
+    set_set_iter = iter(set_of_set_tags)
+    result_file_set = get_tag_mapped_files_or(next(set_set_iter))
+    for _ in range(len(set_of_set_tags)-1):
+        file_set = get_tag_mapped_files_or(next(set_set_iter))
+        result_file_set = result_file_set.intersection(file_set)
+        if len(result_file_set) == 0:
+            # no match already. Break out of loop now.
+            break
 
     columns = ['title','surfix','size','folder']
     tag_df = pd.DataFrame(list(result_file_set), columns=columns)
     return pd.concat([tag_df[columns],
-            sharevars.all_book_tree_view.filter_df(df_filter_and_or, tags, columns)],
+            sharevars.all_book_tree_view.filter_df(df_filter_and_or, set_of_set_tags, columns)],
             ignore_index=True)
 
-
 def search_books_with_terms_and(tags):
-    search_books_with_terms_func(tags, set_intersection, df_filter_and)
-
-def search_books_with_terms_or(tags):
-    search_books_with_terms_func(tags, set_union, df_filter_or)
-
+    return search_books_with_terms_func(tags, set_intersection, df_filter_and)
 
 def change_tile_in_tag_dict(from_title, surfix, size, folder, to_title):
     print('=====================')

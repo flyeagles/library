@@ -1,3 +1,5 @@
+# by yluo, November 2018
+
 import pymysql.cursors
 import argparse
 import logging
@@ -116,7 +118,7 @@ if __name__ == "__main__":
 
     argparser = argparse.ArgumentParser(description='Scan specified folder and upload file info to database.')
     argparser.add_argument("-d", dest='targetdir', # metavar='Folder-root',
-                           type=str, default='.', required=False,
+                           type=str, default=sharevars.target_folder, required=False,
                            help='The directory path of files. Default is current folder.')
 
     argparser.add_argument("--config", dest='configfile', # metavar='Folder-root',
@@ -135,7 +137,7 @@ if __name__ == "__main__":
 
     set_up_logging(args.cleanlog)
 
-    cfg = get_cfg(sys.argv[0], args.configfile)
+    # cfg = get_cfg(sys.argv[0], args.configfile)
     # Connect to the database
     '''
     connection = pymysql.connect(host=cfg['mysql']['host'],

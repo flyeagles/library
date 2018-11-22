@@ -133,7 +133,7 @@ def init(top, gui, *args, **kwargs):
 
     w.from_pattern_entry.insert(tk.END, sharevars.title_in_focus)
     w.to_pattern_entry.insert(tk.END, sharevars.title_in_focus)
-    w.escape_checkbutton.deselect()
+    w.escape_checkbutton.select()
 
 def destroy_window():
     # Function which closes the window.
@@ -142,6 +142,6 @@ def destroy_window():
     top_level = None
 
 if __name__ == '__main__':
-    import filename_change.py
-    filename_change.py.vp_start_gui()
+    import filename_change
+    filename_change.vp_start_gui()
 

@@ -33,6 +33,8 @@
 #    Nov 21, 2018 04:38:51 PM CST  platform: Windows NT
 #    Nov 21, 2018 05:12:11 PM CST  platform: Windows NT
 #    Nov 21, 2018 10:03:40 PM CST  platform: Windows NT
+#    Nov 22, 2018 02:00:52 PM CST  platform: Windows NT
+#    Nov 22, 2018 03:49:54 PM CST  platform: Windows NT
 
 import sys
 import pandas as pd
@@ -53,7 +55,6 @@ except ImportError:
     py3 = True
     import tkinter.ttk as ttk
 
-
 # own code
 
 import sharevars
@@ -61,7 +62,15 @@ import features
 import book_tree_view
 import category_tree_view
 
+def search_from_text_entry(p1):
+    print('library_support.search_from_text_entry')
+    search_file_name()
+    sys.stdout.flush()
 
+def search_tags():
+    print('library_support.search_tags')
+    show_search_result_from_listbox()
+    sys.stdout.flush()
 
 def add_cat_relation():
     print('library_support.add_cat_relation')
@@ -162,32 +171,46 @@ def pick_searched_item(p1):
     sharevars.title_in_focus = sharevars.search_book_tree_view.get_selected_row()[0]
     sys.stdout.flush()
 
-def show_search_result(str_list):
-    a_df = features.search_books_with_terms(str_list)
-    sharevars.search_book_tree_view.update_view_with_df(a_df)
-
-def show_search_result_from_listbox(a_list):
+def search_books_with_descendents():
+    tag_descend_list_set = []
     for chosen_tag in sharevars.chosen_tags_set:
         # we can add the descendents of selected tag for union--search as well.
         desc_set = sharevars.category_tree_view.get_all_descendents_rec(chosen_tag)
-        tag_df = features.search_books_with_terms_or(desc_set)
+        desc_set.add(chosen_tag)
+        tag_descend_list_set.append(desc_set)
 
+    tag_df = features.search_books_with_terms_and_or(tag_descend_list_set)
 
+    sharevars.search_book_tree_view.update_view_with_df(tag_df)
 
-    show_search_result(tags)
+def show_search_result_from_listbox():
+    if check_explicit_tag.get() == '1':
+        # should just search the terms, without considerig their children.
+        search_books_and(sharevars.chosen_tags_set)
+    else:
+        search_books_with_descendents()
+
+def search_books_and(str_list):
+    tag_df = features.search_books_with_terms_and(str_list)
+    sharevars.search_book_tree_view.update_view_with_df(tag_df)
 
 def search_file_name():
     print('library_support.search_file_name')
 
-    str_list = features.split_to_words(w.search_string_entry.get())
-    show_search_result(str_list)
+    search_string = w.search_string_entry.get().strip()
+    if search_string == '':
+        return
+
+    str_list = features.split_to_words(search_string)
+    search_books_and(str_list)
 
     sys.stdout.flush()
 
 def rescan_folder():
     print('library_support.rescan_folder')
     os.unlink(sharevars.lib_index_file)
-    book_tree_view.AllBookTreeView.handle_book_dataframe(sharevars.lib_index_file, sharevars.target_folder)
+    new_lib_df = book_tree_view.AllBookTreeView.handle_book_dataframe(sharevars.lib_index_file, sharevars.target_folder)
+    sharevars.all_book_tree_view.update_view_with_df(new_lib_df)
     sys.stdout.flush()
 
 def open_filename_change(p1):
@@ -199,7 +222,7 @@ def open_filename_change(p1):
 def change_file_name():
     print('library_support.change_file_name')
     
-    # ！！！！！！！ must use create_TopLevel1() to launch child window. Otherwise its event system will malfunction.
+    # !!!!!!  must use create_TopLevel1() to launch child window. Otherwise its event system will malfunction.
     filename_change.create_Toplevel1(root)
 
     sys.stdout.flush()
@@ -218,7 +241,7 @@ def remove_tag_4_search(p1):
     w.chosen_tag_scrolledlistbox.delete(focus_tuple[0])
     sharevars.chosen_tags_set.remove(cat_name)
 
-    show_search_result_from_listbox(w.chosen_tag_scrolledlistbox)
+    show_search_result_from_listbox()
 
     sys.stdout.flush()
 
@@ -269,10 +292,9 @@ def search_book_in_category(p1):
     w.chosen_tag_scrolledlistbox.insert(tk.END, cat_name)
     sharevars.chosen_tags_set.add(cat_name)
 
-    show_search_result_from_listbox(w.chosen_tag_scrolledlistbox)
+    show_search_result_from_listbox()
 
     sys.stdout.flush()
-
 
 def add_tag_2_cat(p1):
     print('library_support.add_tag_2_cat')
@@ -335,16 +357,8 @@ def all_book_view_control(p1):
 
     sys.stdout.flush()
 
-def set_Tk_var():
-    global var_book_list
-    var_book_list = tk.StringVar()
-    global check_cat_contains
-    check_cat_contains = tk.StringVar()
-
 def cmd_save_category():
     sharevars.category_tree_view.shutdown()
-
-
 
 def save_tag_file_dict():
     with open(sharevars.TAG_FILE_NAME, 'wb') as AFILE:
@@ -357,6 +371,13 @@ def quit_app(p1):
     sys.stdout.flush()
     destroy_window()
 
+def set_Tk_var():
+    global var_book_list
+    var_book_list = tk.StringVar()
+    global check_cat_contains
+    check_cat_contains = tk.StringVar()
+    global check_explicit_tag
+    check_explicit_tag = tk.StringVar()
 
 def init(top, gui, *args, **kwargs):
     global w, top_level, root
@@ -389,6 +410,7 @@ def init(top, gui, *args, **kwargs):
                 )
 
     w.check_contain_checkbutton.select()
+    w.check_explicit_tag_checkbutton.deselect()
 
     if os.path.exists(sharevars.TAG_FILE_NAME):
         with open(sharevars.TAG_FILE_NAME, 'rb') as AFILE:
@@ -420,5 +442,9 @@ def destroy_window():
     top_level = None
 
 if __name__ == '__main__':
-    import library
-    library.vp_start_gui()
+    import library.py
+    library.py.vp_start_gui()
+
+
+
+

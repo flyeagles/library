@@ -1,3 +1,5 @@
+# by yluo, November 2018
+
 import argparse
 import os
 
@@ -14,15 +16,16 @@ def get_target_folder_files(to_folder):
             file_stat = os.stat(os.path.join(root, a_file))
             file_stats[a_file] = (file_stat.st_size, root)
     
-    print(file_stats)
     print(folder_file_count)
 
     if len(folder_file_count) == 0: # empty library folder yet
         folder_file_count['0001'] = 0
     target_subfolders = list(folder_file_count.keys())
     target_subfolders.sort(reverse=True)
-    print(target_subfolders[0])
-    head, tail = os.path.split(target_subfolders[0])
+    
+    print("Will start moving file into folder:", target_subfolders[0])
+
+    _, tail = os.path.split(target_subfolders[0])
 
     return file_stats, int(tail), folder_file_count[target_subfolders[0]]
 
@@ -54,6 +57,7 @@ def move_from_to(from_folder, to_folder, delidentical):
     file_move = []
     all_files = os.walk(from_folder)
     identical_files = []
+    moved_count = 0
     for root, dirs, files in all_files:
         for a_file in files:
             #print(root, a_file)
@@ -69,7 +73,9 @@ def move_from_to(from_folder, to_folder, delidentical):
                 print("====Found targt file existing! {f}".format(f=new_file_path))
             else:
                 os.renames(os.path.join(root, a_file), new_file_path)
+                moved_count += 1
 
+    print("Moved total {d} files.".format(d=moved_count))
     print('Folder', folder_name, 'has', file_count, 'files.')
 
     if delidentical and len(identical_files) > 0:
@@ -107,5 +113,10 @@ if __name__ == "__main__":
     args = argparser.parse_args()
 
     print(args)
+
+    print("WARNING: IF you want to preserve the folder structure from your source, DON'T USE THIS PROGRAM!!")
+    answer = input("Do you want to continue? (yes/no)")
+    if answer != 'Y' and answer != 'y':
+        exit(0)
 
     move_from_to(args.fromdir, args.targetdir, args.delidentical)

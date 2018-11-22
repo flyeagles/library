@@ -1,3 +1,5 @@
+# by yluo, November 2018
+
 try:
     import Tkinter as tk
 except ImportError:
@@ -46,8 +48,9 @@ class BookTreeView:
 
     def update_view_with_df(self, a_df):
         self.set_dataframe(a_df)
-        self._fill_tree_view_with_page()
-        auxi.set_count_in_entry(self.count_entry, len(self.df))
+        if a_df is not None:
+            self._fill_tree_view_with_page()
+            auxi.set_count_in_entry(self.count_entry, len(self.df))
 
     def focus_on_row(self, focus_idx):
         # focus on specific line
@@ -79,8 +82,14 @@ class BookTreeView:
                     text='', values=['', ''])
             self.tree_iids.append(iid)
 
+    def _location_capped_at_length(self):
+        return min(self.location, len(self.df.index))
+
     def _fill_tree_view_with_page(self):
-        df_index = self.df[self.location-self.page_size : self.location].index
+        if self.df is None:
+            return
+
+        df_index = self.df[self.location-self.page_size : self._location_capped_at_length()].index
         for idx, row in enumerate(df_index):
             self.tree_view.item(self.tree_iids[idx],
                 text=self.df.loc[row, 'title'],
@@ -200,13 +209,17 @@ class AllBookTreeView(BookTreeView):
             start = datetime.datetime.now()
             book_df = pd.read_pickle(lib_index_file)
             print('load index time:', datetime.datetime.now() - start)
+            print('Index contains books:', len(book_df.index))
         else:
             the_list = AllBookTreeView.rec_read_folder(lib_dir)
             book_df = pd.DataFrame(the_list)
+
             book_df.to_pickle(lib_index_file)
 
+  
         book_df.columns = ['title', 'folder', 'filename', 
-                'surfix', 'authors', 'size', 'mod_date' ]
+                    'surfix', 'authors', 'size', 'mod_date' ]
+        book_df.sort_values(['title'], inplace=True, ascending=True)
 
         return book_df
 
@@ -215,6 +228,7 @@ class AllBookTreeView(BookTreeView):
         all_file_info = []
         start = datetime.datetime.now()
         
+        print("Walk in folder", folder)
         res = os.walk(folder)
         for root, dirs, files in res:
             for filename in files:

@@ -1,3 +1,5 @@
+# by yluo, November 2018
+
 import pandas as pd
 import sys
 import pickle
@@ -17,14 +19,15 @@ class CategoryTreeView:
 
         self.tag_iid_map = dict()
 
-        self._handle_category_series()
         self._load_cat_relations()
 
         self.populate_cats()
 
     def shutdown(self):
         #def cmd_save_category():
-        pd.Series(list(self.category_set)).to_pickle(self.category_fname)
+        with open(self.category_fname, 'wb') as AFILE:
+            pickle.dump(self.category_set, AFILE)
+
         with open(self.category_con_fname, 'wb') as AFILE:
             pickle.dump(self.sub_contain_obj_map, AFILE)
 
@@ -109,12 +112,11 @@ class CategoryTreeView:
 
         return obj_cat_set
 
-    def _handle_category_series(self):
-        cat_series = pd.read_pickle(self.category_fname)
-        print(cat_series)
-        self.category_set = set(list(cat_series))
-
     def _load_cat_relations(self):
+        if os.path.exists(self.category_fname):
+            with open(self.category_fname, 'rb') as AFILE:
+                self.category_set = pickle.load(AFILE)
+
         if os.path.exists(self.category_con_fname):
             with open(self.category_con_fname, 'rb') as AFILE:
                 self.sub_contain_obj_map = pickle.load(AFILE)
