@@ -172,7 +172,7 @@ class AllBookTreeView(BookTreeView):
         self.lib_index_file = lib_index_file
 
         # need load the data from index file.
-        a_df = AllBookTreeView.handle_book_dataframe(lib_index_file, lib_dir)
+        a_df = AllBookTreeView.get_gen_book_index_dataframe(lib_index_file, lib_dir)
         self.update_view_with_df(a_df)
 
         self.initial_df_time = self.recent_df_time  # recent_df_time is set in udpate_view_with_df().
@@ -204,7 +204,28 @@ class AllBookTreeView(BookTreeView):
         self.recent_df_time = datetime.datetime.now()
 
     @staticmethod
-    def handle_book_dataframe(lib_index_file, lib_dir):
+    def merge_book_index_dataframe(lib_index_file, lib_dir, book_df):
+        the_list = AllBookTreeView.rec_read_folder(lib_dir)
+        new_part_book_df = pd.DataFrame(the_list)
+        new_part_book_df.columns = ['title', 'folder', 'filename', 
+                'surfix', 'authors', 'size', 'mod_date' ]
+        #new_part_book_df.sort_values(['filename'], inplace=True, ascending=True)
+
+        old_fname_set = set(book_df['filename'])
+        new_fname_set = set(new_part_book_df['filename'])
+        true_new_fname_set = new_fname_set - old_fname_set
+        func_get_true_new = lambda x: x in true_new_fname_set
+
+        # remove existing items in book_df from new part df
+        true_new_part_book_df = new_part_book_df.loc[lambda df: df['filename'].apply(func_get_true_new)]
+
+        # now merge new_part_book_df with book_df
+        return pd.concat([book_df, true_new_part_book_df],
+                ignore_index=True)
+
+
+    @staticmethod
+    def get_gen_book_index_dataframe(lib_index_file, lib_dir):
         if os.path.exists(lib_index_file):
             start = datetime.datetime.now()
             book_df = pd.read_pickle(lib_index_file)
@@ -213,13 +234,11 @@ class AllBookTreeView(BookTreeView):
         else:
             the_list = AllBookTreeView.rec_read_folder(lib_dir)
             book_df = pd.DataFrame(the_list)
-
             book_df.to_pickle(lib_index_file)
-
   
         book_df.columns = ['title', 'folder', 'filename', 
                     'surfix', 'authors', 'size', 'mod_date' ]
-        book_df.sort_values(['title'], inplace=True, ascending=True)
+        book_df.sort_values(['filename'], inplace=True, ascending=True)
 
         return book_df
 

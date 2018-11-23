@@ -207,11 +207,19 @@ def search_file_name():
     sys.stdout.flush()
 
 def rescan_folder():
+    '''
+    Called from "Rescan library" button.
+    '''
     print('library_support.rescan_folder')
-    os.unlink(sharevars.lib_index_file)
-    new_lib_df = book_tree_view.AllBookTreeView.handle_book_dataframe(sharevars.lib_index_file, sharevars.target_folder)
+    new_lib_df = book_tree_view.AllBookTreeView.merge_book_index_dataframe(
+            sharevars.lib_index_file,
+            sharevars.target_folder,
+            sharevars.all_book_tree_view.get_dataframe()
+            )
+    print(len(new_lib_df.index))
     sharevars.all_book_tree_view.update_view_with_df(new_lib_df)
     sys.stdout.flush()
+
 
 def open_filename_change(p1):
     print('library_support.open_filename_change')
@@ -403,7 +411,8 @@ def init(top, gui, *args, **kwargs):
                     sharevars.page_size)
 
     if sharevars.category_tree_view is None:
-        sharevars.category_tree_view = category_tree_view.CategoryTreeView(w.cat_scrolledtreeview,
+        sharevars.category_tree_view = category_tree_view.CategoryTreeView(
+                w.cat_scrolledtreeview,
                 sharevars.category_fname,
                 sharevars.category_rel_fname,
                 sharevars.category_con_fname
@@ -444,7 +453,4 @@ def destroy_window():
 if __name__ == '__main__':
     import library.py
     library.py.vp_start_gui()
-
-
-
 
