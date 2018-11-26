@@ -3,6 +3,7 @@
 import argparse
 import os
 import pickle
+import shutil
 
 MAX_FILES_FOLDER = 500
 MOVE_TARGET_LIB_DATA_FILE = 'lib_move_target.pkl'
@@ -89,30 +90,48 @@ def move_from_to(from_folder, to_folder, delidentical, movezip):
     identical_files = []
     moved_count = 0
     zipped = False
-    for root, dirs, files in all_files:
-        for a_file in files:
-            surfix = get_file_surfix(a_file)
-            if surfix == 'rar' or (surfix == 'zip' and not movezip):
-                print('Skip zipped file:', a_file)
-                zipped = True
-                continue
+    try:
+        for root, dirs, files in all_files:
+            for a_file in files:
+                    
+                surfix = get_file_surfix(a_file)
+                if surfix == 'rar' or surfix == '7z' or (surfix == 'zip' and not movezip):
+                    print('Skip zipped file:', a_file)
+                    zipped = True
+                    continue
 
-            #print(root, a_file)
-            duplicated, this_size = handle_duplicated_files(files_in_lib, a_file, root, identical_files)
-            if duplicated:
-                continue
-            
-            # need move.
-            start_fid, file_count = get_folder_id_count(start_fid, file_count)
-            folder_name = '{:04d}'.format(start_fid)
-            new_file_path = os.path.join(to_folder, folder_name, a_file)
-            if os.path.exists(new_file_path):
-                print("====Found targt file existing! {f}".format(f=new_file_path))
-            else:
-                os.renames(os.path.join(root, a_file), new_file_path)
-                # update files_in_lib map
-                files_in_lib[a_file] = (this_size, str(os.path.join(to_folder, folder_name)))
-                moved_count += 1
+                #print(root, a_file)
+                duplicated, this_size = handle_duplicated_files(files_in_lib, a_file, root, identical_files)
+                if duplicated:
+                    continue
+                
+                # need move.
+                start_fid, file_count = get_folder_id_count(start_fid, file_count)
+                folder_name = '{:04d}'.format(start_fid)
+                new_file_path = os.path.join(to_folder, folder_name, a_file)
+                if os.path.exists(new_file_path):
+                    print("====Found targt file existing! {f}".format(f=new_file_path))
+                else:
+                    # os.renames(os.path.join(root, a_file), new_file_path)
+                    try:
+                        shutil.move(os.path.join(root, a_file), new_file_path) # this support cross-disk move.
+                    except FileNotFoundError as e:
+                        head, _ = os.path.split(new_file_path)
+                        os.mkdir(head)
+                        shutil.move(os.path.join(root, a_file), new_file_path) # this support cross-disk move.
+
+                    # update files_in_lib map
+                    files_in_lib[a_file] = (this_size, str(os.path.join(to_folder, folder_name)))
+                    moved_count += 1
+                    if moved_count % 100 == 0:
+                        print("Has moved {d} files...".format(d=moved_count))
+
+    except FileNotFoundError as e:
+        print(e)
+    except FileExistsError as e:
+        print(e)
+    except OSError as e:
+        print(e)
 
     print("Moved total {d} files.".format(d=moved_count))
     print('Folder', folder_name, 'has', file_count, 'files.')
@@ -123,7 +142,7 @@ def move_from_to(from_folder, to_folder, delidentical, movezip):
         print("You can use '--movezip' command option to force move .zip files.")
 
     if delidentical and len(identical_files) > 0:
-        print("========Deleting following identical files!")
+        print("========Deleting following {d} identical files!".format(d=len(identical_files)))
         print(identical_files)
         for id_file in identical_files:
             os.unlink(id_file)
