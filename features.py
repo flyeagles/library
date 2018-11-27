@@ -46,7 +46,7 @@ class WatchClip(threading.Thread):
  
 isascii = lambda s: len(s) == len(s.encode())
 
-syms = r' |\(|\)|\[|\]|\.|_|-|\+|\?|\'|（|）|\:|：|，|、|《|》|·|“|”|？|【|】'
+syms = r' |\(|\)|\[|\]|\.|_|-|\+|\?|\'|（|）|\:|\&|：|，|、|《|》|·|“|”|？|【|】'
 def split_to_words(str_val):
     return re.split(syms, str_val)
 
