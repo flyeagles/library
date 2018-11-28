@@ -2,7 +2,7 @@ import os
 import argparse
 
 
-def tag_file_with_folder_name(folder, is_surfix):
+def tag_file_with_folder_name(folder, is_surfix, change_folder):
     os.chdir(folder)
 
     fullpath = os.getcwd()
@@ -12,7 +12,7 @@ def tag_file_with_folder_name(folder, is_surfix):
     files = os.listdir('.')
     cnt = 0
     for item in files:
-        if not os.path.isfile(item):
+        if not change_folder and not os.path.isfile(item):
             # we don't change contents of subfoldeers.
             continue
 
@@ -34,6 +34,11 @@ if __name__ == "__main__":
                             default=False, required=False,
                             help='whether the folder name is added as surfix.')
 
+    argparser.add_argument("--folder", dest='change_folder', # metavar='Folder-root',
+                            action='store_true',
+                            default=False, required=False,
+                            help='whether to change sub-folder as well.')
+
     argparser.add_argument("--cleanlog", dest='cleanlog', 
                            default=False, required=False,
                            action='store_true',
@@ -42,5 +47,5 @@ if __name__ == "__main__":
     args = argparser.parse_args()
 
     print(args)
-    tag_file_with_folder_name(args.targetdir, args.at_surfix)
+    tag_file_with_folder_name(args.targetdir, args.at_surfix, args.change_folder)
 

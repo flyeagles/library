@@ -4,6 +4,7 @@ import argparse
 import os
 import pickle
 import shutil
+import datetime
 
 MAX_FILES_FOLDER = 500
 MOVE_TARGET_LIB_DATA_FILE = 'lib_move_target.pkl'
@@ -37,6 +38,7 @@ def get_target_folder_files_from_system(to_folder):
     Structure of file_data:
         map: file_name --> (size, path to file)
     '''
+    start_time = datetime.datetime.now()
     all_files = os.walk(to_folder)
     file_stats = {}
     folder_file_count = {}
@@ -47,6 +49,7 @@ def get_target_folder_files_from_system(to_folder):
             file_stat = os.stat(os.path.join(root, a_file))
             file_stats[a_file] = (file_stat.st_size, root)
     
+    print("generate index file in ", datetime.datetime.now() - start_time)
     print(folder_file_count)
 
     if len(folder_file_count) == 0: # empty library folder yet
@@ -95,7 +98,7 @@ def move_from_to(from_folder, to_folder, delidentical, movezip):
             for a_file in files:
                     
                 surfix = get_file_surfix(a_file)
-                if surfix == 'rar' or surfix == '7z' or (surfix == 'zip' and not movezip):
+                if surfix == '7z' or ( (surfix == 'rar' or surfix == 'zip') and not movezip):
                     print('Skip zipped file:', a_file)
                     zipped = True
                     continue
