@@ -3,6 +3,7 @@ import argparse
 
 
 def tag_file_with_folder_name(folder, is_surfix, change_folder):
+    olddir = os.getcwd()
     os.chdir(folder)
 
     fullpath = os.getcwd()
@@ -21,6 +22,7 @@ def tag_file_with_folder_name(folder, is_surfix, change_folder):
         cnt += 1
 
     print("Changed {d} file names.".format(d=cnt))
+    os.chdir(olddir)
 
 if __name__ == "__main__":
 
