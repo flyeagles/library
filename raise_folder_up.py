@@ -6,6 +6,8 @@ for item in os.listdir('.'):
 
     os.chdir(item)
     for subi in os.listdir('.'):
-        os.system('move {i} ..'.format(i=subi))
+        cmd = 'move "{i}" ..'.format(i=subi)
+        print(cmd)
+        os.system(cmd)
 
     os.chdir('..')

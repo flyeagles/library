@@ -83,6 +83,9 @@ def get_folder_id_count(start_fid, file_count):
     else:
         return start_fid + 1, 1
 
+from stat import S_IREAD
+
+
 def move_from_to(from_folder, to_folder, delidentical, movezip):
 
     files_in_lib, start_fid, file_count = get_target_folder_files(to_folder)
@@ -117,11 +120,14 @@ def move_from_to(from_folder, to_folder, delidentical, movezip):
                 else:
                     # os.renames(os.path.join(root, a_file), new_file_path)
                     try:
-                        shutil.move(os.path.join(root, a_file), new_file_path) # this support cross-disk move.
+                        old_file_path = os.path.join(root, a_file)
+                        shutil.move(old_file_path, new_file_path) # this support cross-disk move.
+                        os.chmod(new_file_path, S_IREAD)
                     except FileNotFoundError as e:
                         head, _ = os.path.split(new_file_path)
                         os.mkdir(head)
-                        shutil.move(os.path.join(root, a_file), new_file_path) # this support cross-disk move.
+                        shutil.move(old_file_path, new_file_path) # this support cross-disk move.
+                        os.chmod(new_file_path, S_IREAD)
 
                     # update files_in_lib map
                     files_in_lib[a_file] = (this_size, str(os.path.join(to_folder, folder_name)))
