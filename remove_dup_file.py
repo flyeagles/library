@@ -27,7 +27,6 @@ if __name__ == "__main__":
 
     prev_size = sorted_df['size'].max()
     print('============', prev_size)
-    count = 0
     dup_list = []
     for item in sorted_df.iterrows():
         it = item[1]
@@ -56,11 +55,6 @@ if __name__ == "__main__":
 
         prev_size = size
         #print(title, folder)
-
-        count += 1
-        if count > 100:
-            break
-
 
 
     time_in_sec = datetime.datetime.now() - start_time
