@@ -34,13 +34,16 @@ def get_target_folder_files(to_folder):
 
 def get_target_folder_files_from_system(to_folder):
     '''
-    return (file_data, start_fd, file_count_in_fd)
+    return (file_data, start_fd, file_count_in_fd, size_index)
     Structure of file_data:
         map: file_name --> (size, path to file)
+    Structure of size_index:
+        map: size --> (file_name, path)
     '''
     start_time = datetime.datetime.now()
     all_files = os.walk(to_folder)
     file_stats = {}
+    size_index = {}
     folder_file_count = {}
     for root, dirs, files in all_files:
         for a_file in files:
@@ -48,6 +51,8 @@ def get_target_folder_files_from_system(to_folder):
             folder_file_count[root] = new_cnt
             file_stat = os.stat(os.path.join(root, a_file))
             file_stats[a_file] = (file_stat.st_size, root)
+
+            size_index[file_stat.st_size] = (a_file, root)
     
     print("generate index file in ", datetime.datetime.now() - start_time)
     print(folder_file_count)
@@ -61,9 +66,9 @@ def get_target_folder_files_from_system(to_folder):
 
     _, tail = os.path.split(target_subfolders[0])
 
-    return file_stats, int(tail), folder_file_count[target_subfolders[0]]
+    return file_stats, int(tail), folder_file_count[target_subfolders[0]], size_index
 
-def handle_duplicated_files(files_in_lib, a_file, root, identical_files):
+def handle_duplicated_files(files_in_lib, a_file, root, identical_files, size_index):
     this_size = os.path.getsize(os.path.join(root, a_file))
     if a_file in files_in_lib:
         if this_size == files_in_lib[a_file][0]:
@@ -75,6 +80,18 @@ def handle_duplicated_files(files_in_lib, a_file, root, identical_files):
                     fd=root, lpath=files_in_lib[a_file][1]))
         
         return True, this_size
+    else:
+        # check whether there is existing file with same exact size.
+        if this_size in size_index:
+            print("---- Find file {fn} with exact size from {fd} and to {f2} in {lpath}".format(fn=a_file,
+                    fd=root, f2=size_index[this_size][0], lpath=size_index[this_size][1]))
+
+            ans = input("Do you still want to move this file?([y]es/[n]o)(default:No):")
+            if ans == 'y':
+                return False, this_size
+            else:
+                return True, this_size
+
     return False, this_size
 
 def get_folder_id_count(start_fid, file_count):
@@ -88,7 +105,7 @@ from stat import S_IREAD
 
 def move_from_to(from_folder, to_folder, delidentical, movezip):
 
-    files_in_lib, start_fid, file_count = get_target_folder_files(to_folder)
+    files_in_lib, start_fid, file_count, size_index = get_target_folder_files(to_folder)
     folder_name = '{:04d}'.format(start_fid)
 
     file_move = []
@@ -107,7 +124,7 @@ def move_from_to(from_folder, to_folder, delidentical, movezip):
                     continue
 
                 #print(root, a_file)
-                duplicated, this_size = handle_duplicated_files(files_in_lib, a_file, root, identical_files)
+                duplicated, this_size = handle_duplicated_files(files_in_lib, a_file, root, identical_files, size_index)
                 if duplicated:
                     continue
                 
@@ -130,7 +147,9 @@ def move_from_to(from_folder, to_folder, delidentical, movezip):
                         os.chmod(new_file_path, S_IREAD)
 
                     # update files_in_lib map
-                    files_in_lib[a_file] = (this_size, str(os.path.join(to_folder, folder_name)))
+                    new_file_path = str(os.path.join(to_folder, folder_name))
+                    files_in_lib[a_file] = (this_size, new_file_path)
+                    size_index[this_size] = (a_file, new_file_path)
                     moved_count += 1
                     if moved_count % 100 == 0:
                         print("Has moved {d} files...".format(d=moved_count))
@@ -145,7 +164,7 @@ def move_from_to(from_folder, to_folder, delidentical, movezip):
     print("Moved total {d} files.".format(d=moved_count))
     print('Folder', folder_name, 'has', file_count, 'files.')
 
-    save_target_folder_data((files_in_lib, start_fid, file_count))
+    save_target_folder_data((files_in_lib, start_fid, file_count, size_index))
 
     if zipped:
         print("You can use '--movezip' command option to force move .zip files.")

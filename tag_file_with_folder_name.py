@@ -17,7 +17,11 @@ def tag_file_with_folder_name(folder, is_surfix, change_folder):
             # we don't change contents of subfoldeers.
             continue
 
-        new_name = tail + '_' + item
+        if is_surfix:
+            new_name = item + '_' + tail
+        else:
+            new_name = tail + '_' + item
+
         os.rename(item, new_name)
         cnt += 1
 
