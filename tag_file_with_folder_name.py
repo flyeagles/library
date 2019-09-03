@@ -2,6 +2,13 @@ import os
 import argparse
 
 
+def split_file_surfix(fname):
+    if '.' not in fname:
+        return (fname, '')
+    
+    dot_index = fname.rfind('.')
+    return (fname[:dot_index], fname[dot_index+1:])
+    
 def tag_file_with_folder_name(folder, is_surfix, change_folder):
     olddir = os.getcwd()
     os.chdir(folder)
@@ -18,7 +25,8 @@ def tag_file_with_folder_name(folder, is_surfix, change_folder):
             continue
 
         if is_surfix:
-            new_name = item + '_' + tail
+            raw_fname, surfix = split_file_surfix(item)
+            new_name = raw_fname + '_' + tail + '.' + surfix
         else:
             new_name = tail + '_' + item
 
