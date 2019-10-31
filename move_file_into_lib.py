@@ -100,7 +100,7 @@ def get_folder_id_count(start_fid, file_count):
     else:
         return start_fid + 1, 1
 
-from stat import S_IREAD
+from stat import S_IREAD, S_IWRITE
 
 
 def move_from_to(from_folder, to_folder, delidentical, movezip):
@@ -138,6 +138,7 @@ def move_from_to(from_folder, to_folder, delidentical, movezip):
                     # os.renames(os.path.join(root, a_file), new_file_path)
                     try:
                         old_file_path = os.path.join(root, a_file)
+                        os.chmod(old_file_path, S_IWRITE)   # always make old file writable to enable move
                         shutil.move(old_file_path, new_file_path) # this support cross-disk move.
                         os.chmod(new_file_path, S_IREAD)
                     except FileNotFoundError as e:
