@@ -9,6 +9,12 @@ import datetime
 MAX_FILES_FOLDER = 500
 MOVE_TARGET_LIB_DATA_FILE = 'lib_move_target.pkl'
 
+def add_size_data_to_index(size_index, size, a_file, root):
+    if size in size_index:
+        size_index[size].append((a_file, root))
+    else:
+        size_index[size] = [(a_file, root)]
+
 def get_file_surfix(fname):
     try:
         pos = fname.rindex('.')
@@ -43,7 +49,7 @@ def get_target_folder_files_from_system(to_folder):
     start_time = datetime.datetime.now()
     all_files = os.walk(to_folder)
     file_stats = {}
-    size_index = {}
+    size_index = {}  # mapping from file size to a list of names
     folder_file_count = {}
     for root, dirs, files in all_files:
         for a_file in files:
@@ -52,7 +58,7 @@ def get_target_folder_files_from_system(to_folder):
             file_stat = os.stat(os.path.join(root, a_file))
             file_stats[a_file] = (file_stat.st_size, root)
 
-            size_index[file_stat.st_size] = (a_file, root)
+            add_size_data_to_index(size_index, file_stat.st_size, a_file, root)
     
     print("generate index file in ", datetime.datetime.now() - start_time)
     print(folder_file_count)
@@ -83,8 +89,15 @@ def handle_duplicated_files(files_in_lib, a_file, root, identical_files, size_in
     else:
         # check whether there is existing file with same exact size.
         if this_size in size_index:
-            print("---- Find file {fn} with exact size from {fd} and to {f2} in {lpath}".format(fn=a_file,
-                    fd=root, f2=size_index[this_size][0], lpath=size_index[this_size][1]))
+            size_count = len(size_index[this_size])
+            if  size_count == 1:
+                print("---- Find file {fn} with exact size from {fd} and to {f2} in {lpath}".format(fn=a_file,
+                        fd=root, f2=size_index[this_size][0][0], lpath=size_index[this_size][0][1]))
+            else:
+                print("---- Find file {fn} with exact size from {fd} and to {cnt} existing books:".format(fn=a_file,
+                        fd=root, cnt=size_count))
+                for (old_file, old_root) in size_index[this_size]:
+                    print("\t\t{fn} in {fd}".format(fn=old_file, fd=old_root))
 
             ans = input("Do you still want to move this file?([y]es/[n]o)(default:No):")
             if ans == 'y':
@@ -103,7 +116,7 @@ def get_folder_id_count(start_fid, file_count):
 from stat import S_IREAD, S_IWRITE
 
 
-def move_from_to(from_folder, to_folder, delidentical, movezip):
+def move_from_to(from_folder, to_folder, delidentical, movezip, need_recursive):
 
     files_in_lib, start_fid, file_count, size_index = get_target_folder_files(to_folder)
     folder_name = '{:04d}'.format(start_fid)
@@ -115,6 +128,7 @@ def move_from_to(from_folder, to_folder, delidentical, movezip):
     zipped = False
     try:
         for root, dirs, files in all_files:
+
             for a_file in files:
                     
                 surfix = get_file_surfix(a_file)
@@ -150,10 +164,15 @@ def move_from_to(from_folder, to_folder, delidentical, movezip):
                     # update files_in_lib map
                     new_file_path = str(os.path.join(to_folder, folder_name))
                     files_in_lib[a_file] = (this_size, new_file_path)
-                    size_index[this_size] = (a_file, new_file_path)
+        
+                    add_size_data_to_index(size_index, this_size, a_file, new_file_path)
+
                     moved_count += 1
                     if moved_count % 100 == 0:
                         print("Has moved {d} files...".format(d=moved_count))
+
+            if not need_recursive:
+                break
 
     except FileNotFoundError as e:
         print(e)
@@ -175,22 +194,30 @@ def move_from_to(from_folder, to_folder, delidentical, movezip):
         print(identical_files)
         for id_file in identical_files:
             os.unlink(id_file)
-           
+
+
+def check_path_validity(dirstr):
+    thelen = len(dirstr)
+    if thelen >= 2 and dirstr[1] == ':':  # e.g., "E:"
+        if thelen < 3 or dirstr[2] != '\\':  # e.g., "E:.\"
+            print("Cannot use relative path on different drive.")
+            exit(1)
+
 
 if __name__ == "__main__":
 
     argparser = argparse.ArgumentParser(description='Move files from source folder to target folder. Skip files with duplicated files in target.')
     argparser.add_argument("--from", dest='fromdir', # metavar='Folder-root',
                            type=str, default='.', required=True,
-                           help='The directory path of source files.')
+                           help='The directory path of source files. Cannot be relative path if on different drive.')
     argparser.add_argument("--to", dest='targetdir', # metavar='Folder-root',
                            type=str, default='.', required=True,
-                           help='The library directory to copy into.')
+                           help='The library directory to copy into. Cannot be relative if on different drive.')
 
-    argparser.add_argument("--norec", dest='recursive', 
+    argparser.add_argument("--rec", dest='recursive', 
                            default=False, required=False,
                            action='store_true',
-                           help='Don\'t scan recursively in source folder. Default is false.')
+                           help='Scan recursively in source folder. Default is false.')
 
     argparser.add_argument("--del", dest='delidentical', 
                            default=False, required=False,
@@ -211,9 +238,12 @@ if __name__ == "__main__":
 
     print(args)
 
+    check_path_validity(args.fromdir)
+    check_path_validity(args.targetdir)
+
     print("WARNING: IF you want to preserve the folder structure from your source, DON'T USE THIS PROGRAM!!")
     answer = input("Do you want to continue? (yes/no)")
     if answer != 'Y' and answer != 'y':
         exit(0)
 
-    move_from_to(args.fromdir, args.targetdir, args.delidentical, args.movezip)
+    move_from_to(args.fromdir, args.targetdir, args.delidentical, args.movezip, args.recursive)
