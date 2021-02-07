@@ -10,12 +10,13 @@ import auxi
 
 class BookTreeView:
 
-    def __init__(self, tree_view, count_entry, page_size):
+    def __init__(self, tree_view, count_entry, unique_count_entry, page_size):
         self.tree_view = tree_view  # the tree view to show the book list
         self.df = None    # dataframe contains all books
         self.tree_idds = None     # tree IIDs to manipuate each row
 
         self.count_entry = count_entry   # total item count display
+        self.unique_count_entry = unique_count_entry   # total item count display
         self.page_size = page_size
 
         self.reset_location()
@@ -51,6 +52,7 @@ class BookTreeView:
         if a_df is not None:
             self._fill_tree_view_with_page()
             auxi.set_count_in_entry(self.count_entry, len(self.df))
+            auxi.set_count_in_entry(self.unique_count_entry, self.df['title'].nunique())
 
     def focus_on_row(self, focus_idx):
         # focus on specific line
@@ -167,8 +169,8 @@ import pandas as pd
 
 class AllBookTreeView(BookTreeView):
 
-    def __init__(self, tree_view, count_entry, page_size, lib_index_file, lib_dir):
-        super().__init__(tree_view, count_entry, page_size)
+    def __init__(self, tree_view, count_entry, unique_count_entry, page_size, lib_index_file, lib_dir):
+        super().__init__(tree_view, count_entry, unique_count_entry, page_size)
         self.lib_index_file = lib_index_file
 
         # need load the data from index file.

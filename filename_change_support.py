@@ -83,7 +83,8 @@ def preview_change():
     print('filename_change_support.preview_change')
     from_pattern = w.from_pattern_entry.get()
     to_pattern = w.to_pattern_entry.get()
-    print(from_pattern, '--->', to_pattern)
+    to_pattern_surfix = w.to_pattern_entry_surfix.get()
+    print(from_pattern, '--->', to_pattern, ' surfix:', to_pattern_surfix)
 
     if check_escape.get() == "on":
         from_pattern = re.escape(from_pattern)
@@ -104,6 +105,7 @@ def preview_change():
     for title, surfix, folder in original_titles:
         if re.search(from_pattern, title):
             new_title = re.sub(from_pattern, to_pattern, title)
+            new_title = new_title+to_pattern_surfix
             if title == new_title:
                 # no change at all. Ignore this.
                 continue

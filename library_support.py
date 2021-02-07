@@ -220,7 +220,6 @@ def rescan_folder():
     sharevars.all_book_tree_view.update_view_with_df(new_lib_df)
     sys.stdout.flush()
 
-
 def open_filename_change(p1):
     print('library_support.open_filename_change')
     print('p1 = {0}'.format(p1))
@@ -399,6 +398,7 @@ def init(top, gui, *args, **kwargs):
         sharevars.all_book_tree_view = book_tree_view.AllBookTreeView(
                     w.books_scrolledtreeview,
                     w.all_book_count_entry,
+                    w.unique_book_count_entry,
                     sharevars.page_size,
                     sharevars.lib_index_file,
                     sharevars.target_folder
@@ -408,6 +408,7 @@ def init(top, gui, *args, **kwargs):
         sharevars.search_book_tree_view = book_tree_view.BookTreeView(
                     w.search_books_scrolledtreeview,
                     w.found_book_count_entry,
+                    w.unique_found_book_count_entry,
                     sharevars.page_size)
 
     if sharevars.category_tree_view is None:
@@ -453,4 +454,8 @@ def destroy_window():
 if __name__ == '__main__':
     import library.py
     library.py.vp_start_gui()
+
+
+
+
 
