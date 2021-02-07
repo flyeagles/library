@@ -5,6 +5,7 @@ import os
 import pickle
 import shutil
 import datetime
+import time
 
 MAX_FILES_FOLDER = 500
 MOVE_TARGET_LIB_DATA_FILE = 'lib_move_target.pkl'
@@ -76,6 +77,10 @@ def get_target_folder_files_from_system(to_folder):
 
 def handle_duplicated_files(files_in_lib, a_file, root, identical_files, size_index):
     this_size = os.path.getsize(os.path.join(root, a_file))
+    if this_size == 0:
+        time.sleep(1)
+        this_size = os.path.getsize(os.path.join(root, a_file))   # when accessing Samba file via Windows, the size may be wrong.
+    
     if a_file in files_in_lib:
         if this_size == files_in_lib[a_file][0]:
             print("---- Identical file {fn} at {fd} and {lpath}".format(fn=a_file,
@@ -91,11 +96,11 @@ def handle_duplicated_files(files_in_lib, a_file, root, identical_files, size_in
         if this_size in size_index:
             size_count = len(size_index[this_size])
             if  size_count == 1:
-                print("---- Find file {fn} with exact size from {fd} and to {f2} in {lpath}".format(fn=a_file,
-                        fd=root, f2=size_index[this_size][0][0], lpath=size_index[this_size][0][1]))
+                print("---- Find file \n\t\t{fn} with exact size {sz} from {fd} and to \n\t\t{f2} in {lpath}".format(fn=a_file,
+                        sz=this_size,fd=root, f2=size_index[this_size][0][0], lpath=size_index[this_size][0][1]))
             else:
-                print("---- Find file {fn} with exact size from {fd} and to {cnt} existing books:".format(fn=a_file,
-                        fd=root, cnt=size_count))
+                print("---- Find file \n\t\t{fn} with exact size {sz} from {fd} and to {cnt} existing books:".format(fn=a_file,
+                        sz=this_size,fd=root, cnt=size_count))
                 for (old_file, old_root) in size_index[this_size]:
                     print("\t\t{fn} in {fd}".format(fn=old_file, fd=old_root))
 
@@ -122,7 +127,7 @@ def move_from_to(from_folder, to_folder, delidentical, movezip, need_recursive):
     folder_name = '{:04d}'.format(start_fid)
 
     file_move = []
-    all_files = os.walk(from_folder)
+    all_files = os.walk(from_folder)    
     identical_files = []
     moved_count = 0
     zipped = False
@@ -193,6 +198,7 @@ def move_from_to(from_folder, to_folder, delidentical, movezip, need_recursive):
         print("========Deleting following {d} identical files!".format(d=len(identical_files)))
         print(identical_files)
         for id_file in identical_files:
+            os.chmod(id_file, S_IWRITE)   # always make old file writable to enable move
             os.unlink(id_file)
 
 

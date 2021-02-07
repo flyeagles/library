@@ -240,6 +240,15 @@ class AllBookTreeView(BookTreeView):
                     'surfix', 'authors', 'size', 'mod_date' ]
         book_df.sort_values(['filename'], inplace=True, ascending=True)
 
+        '''
+        # print(book_df['folder'])
+        # print(book_df['folder'] == '.\\library\\0110')
+        in_folder_df = book_df[book_df['folder'] == '.\\library\\0110']
+        file_list = in_folder_df['filename'].to_list()
+        for idx, file in enumerate(file_list):
+            print(file)
+        '''
+        
         return book_df
 
     @staticmethod
