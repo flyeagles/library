@@ -7,14 +7,9 @@ import shutil
 import datetime
 import time
 
-MAX_FILES_FOLDER = 500
-MOVE_TARGET_LIB_DATA_FILE = 'lib_move_target.pkl'
+import library_data
+import sharevars
 
-def add_size_data_to_index(size_index, size, a_file, root):
-    if size in size_index:
-        size_index[size].append((a_file, root))
-    else:
-        size_index[size] = [(a_file, root)]
 
 def get_file_surfix(fname):
     try:
@@ -23,57 +18,6 @@ def get_file_surfix(fname):
     except ValueError:
         return ''
 
-def save_target_folder_data(target_folder_data):
-    with open(MOVE_TARGET_LIB_DATA_FILE, 'wb') as WFILE:
-        pickle.dump(target_folder_data, WFILE)
-
-
-def get_target_folder_files(to_folder):
-    if os.path.exists(MOVE_TARGET_LIB_DATA_FILE):
-        with open(MOVE_TARGET_LIB_DATA_FILE, 'rb') as RFILE:
-            target_folder_data = pickle.load(RFILE)
-    else:
-        target_folder_data = get_target_folder_files_from_system(to_folder)
-        save_target_folder_data(target_folder_data)
-
-    return target_folder_data
-
-
-def get_target_folder_files_from_system(to_folder):
-    '''
-    return (file_data, start_fd, file_count_in_fd, size_index)
-    Structure of file_data:
-        map: file_name --> (size, path to file)
-    Structure of size_index:
-        map: size --> (file_name, path)
-    '''
-    start_time = datetime.datetime.now()
-    all_files = os.walk(to_folder)
-    file_stats = {}
-    size_index = {}  # mapping from file size to a list of names
-    folder_file_count = {}
-    for root, dirs, files in all_files:
-        for a_file in files:
-            new_cnt = folder_file_count.get(root, 0) + 1
-            folder_file_count[root] = new_cnt
-            file_stat = os.stat(os.path.join(root, a_file))
-            file_stats[a_file] = (file_stat.st_size, root)
-
-            add_size_data_to_index(size_index, file_stat.st_size, a_file, root)
-    
-    print("generate index file in ", datetime.datetime.now() - start_time)
-    print(folder_file_count)
-
-    if len(folder_file_count) == 0: # empty library folder yet
-        folder_file_count['0001'] = 0
-    target_subfolders = list(folder_file_count.keys())
-    target_subfolders.sort(reverse=True)
-    
-    print("Will start moving file into folder:", target_subfolders[0])
-
-    _, tail = os.path.split(target_subfolders[0])
-
-    return file_stats, int(tail), folder_file_count[target_subfolders[0]], size_index
 
 def handle_duplicated_files(files_in_lib, a_file, root, identical_files, size_index):
     this_size = os.path.getsize(os.path.join(root, a_file))
@@ -98,32 +42,44 @@ def handle_duplicated_files(files_in_lib, a_file, root, identical_files, size_in
             if  size_count == 1:
                 print("---- Find file \n\t\t{fn} with exact size {sz} from {fd} and to \n\t\t{f2} in {lpath}".format(fn=a_file,
                         sz=this_size,fd=root, f2=size_index[this_size][0][0], lpath=size_index[this_size][0][1]))
+
+                ans = input("Do you still want to move this file?([y]es/[n]o)(default:No):")
+                if ans == 'y':
+                    return False, this_size
+                else:
+                    ans = input("Do you want to rename th file in library with the new name?([r]ename/[n]o)(default:No):")
+                    if ans == 'r':
+                        old_name = size_index[this_size][0][0]
+                        if sharevars.global_lib_data.rename_file_for_move_entry(old_name, a_file, this_size):
+                            old_full_path = os.path.join(size_index[this_size][0][1], old_name)
+                            new_full_path = os.path.join(size_index[this_size][0][1], a_file)
+                            print(f"Convert from {old_full_path} to {new_full_path}")
+                            os.rename(old_full_path, new_full_path)
+
+                    return True, this_size
+
             else:
                 print("---- Find file \n\t\t{fn} with exact size {sz} from {fd} and to {cnt} existing books:".format(fn=a_file,
                         sz=this_size,fd=root, cnt=size_count))
                 for (old_file, old_root) in size_index[this_size]:
                     print("\t\t{fn} in {fd}".format(fn=old_file, fd=old_root))
 
-            ans = input("Do you still want to move this file?([y]es/[n]o)(default:No):")
-            if ans == 'y':
-                return False, this_size
-            else:
-                return True, this_size
+                ans = input("Do you still want to move this file?([y]es/[n]o)(default:No):")
+                if ans == 'y':
+                    return False, this_size
+                else:
+                    return True, this_size
 
     return False, this_size
 
-def get_folder_id_count(start_fid, file_count):
-    if file_count < MAX_FILES_FOLDER:
-        return start_fid, file_count + 1
-    else:
-        return start_fid + 1, 1
 
 from stat import S_IREAD, S_IWRITE
 
 
 def move_from_to(from_folder, to_folder, delidentical, movezip, need_recursive):
 
-    files_in_lib, start_fid, file_count, size_index = get_target_folder_files(to_folder)
+    sharevars.global_lib_data = library_data.LibraryData(to_folder)
+    files_in_lib, start_fid, file_count, size_index = sharevars.global_lib_data.get_target_folder_files()
     folder_name = '{:04d}'.format(start_fid)
 
     file_move = []
@@ -148,13 +104,14 @@ def move_from_to(from_folder, to_folder, delidentical, movezip, need_recursive):
                     continue
                 
                 # need move.
-                start_fid, file_count = get_folder_id_count(start_fid, file_count)
+                start_fid, file_count = lib_data.get_folder_id_count()
                 folder_name = '{:04d}'.format(start_fid)
                 new_file_path = os.path.join(to_folder, folder_name, a_file)
                 if os.path.exists(new_file_path):
                     print("====Found targt file existing! {f}".format(f=new_file_path))
                 else:
                     # os.renames(os.path.join(root, a_file), new_file_path)
+                    file_mod_time = os.path.getmtime(old_file_path)
                     try:
                         old_file_path = os.path.join(root, a_file)
                         os.chmod(old_file_path, S_IWRITE)   # always make old file writable to enable move
@@ -167,10 +124,7 @@ def move_from_to(from_folder, to_folder, delidentical, movezip, need_recursive):
                         os.chmod(new_file_path, S_IREAD)
 
                     # update files_in_lib map
-                    new_file_path = str(os.path.join(to_folder, folder_name))
-                    files_in_lib[a_file] = (this_size, new_file_path)
-        
-                    add_size_data_to_index(size_index, this_size, a_file, new_file_path)
+                    sharevars.global_lib_data.add_file_to_lib(to_folder, folder_name, this_size, a_file, file_mod_time)
 
                     moved_count += 1
                     if moved_count % 100 == 0:
@@ -189,7 +143,8 @@ def move_from_to(from_folder, to_folder, delidentical, movezip, need_recursive):
     print("Moved total {d} files.".format(d=moved_count))
     print('Folder', folder_name, 'has', file_count, 'files.')
 
-    save_target_folder_data((files_in_lib, start_fid, file_count, size_index))
+    # data structure: 
+    sharevars.global_lib_data.save()
 
     if zipped:
         print("You can use '--movezip' command option to force move .zip files.")

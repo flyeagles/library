@@ -42,6 +42,7 @@ chosen_tags_set = set()
 title_changes = []
 title_full_path_changes = []
 
+global_lib_data = None
 
 # control for clip watching thread
 not_quit = True

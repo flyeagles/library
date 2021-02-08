@@ -1,3 +1,4 @@
+# coding=utf-8
 # by yluo, November 2018
 
 import os
@@ -205,7 +206,7 @@ class LibFileSystemEventHandler(watchdog.events.FileSystemEventHandler):
         folder, new_fname = os.path.split(dst_path)
         new_title, surfix = auxi.get_name_surfix(new_fname)
 
-        sharevars.all_book_tree_view.rename_title(old_title, surfix, size, folder, new_title)
+        # sharevars.all_book_tree_view.rename_title(old_title, surfix, size, folder, new_title)
         change_tile_in_tag_dict(old_title, surfix, size, folder, new_title)
         
         print("Title change: ", (old_title, surfix, size, folder, new_title))

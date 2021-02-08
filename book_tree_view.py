@@ -7,6 +7,8 @@ except ImportError:
 
 
 import auxi
+import library_data
+import sharevars
 
 class BookTreeView:
 
@@ -167,32 +169,29 @@ import datetime
 import os
 import pandas as pd
 
+
 class AllBookTreeView(BookTreeView):
 
     def __init__(self, tree_view, count_entry, unique_count_entry, page_size, lib_index_file, lib_dir):
         super().__init__(tree_view, count_entry, unique_count_entry, page_size)
         self.lib_index_file = lib_index_file
 
-        # need load the data from index file.
-        a_df = AllBookTreeView.get_gen_book_index_dataframe(lib_index_file, lib_dir)
-        self.update_view_with_df(a_df)
+        sharevars.global_lib_data = library_data.LibraryData(lib_dir)
 
-        self.initial_df_time = self.recent_df_time  # recent_df_time is set in udpate_view_with_df().
+        # need load the data from index file.
+        a_df = sharevars.global_lib_data.get_library_df()
+        self.update_view_with_df(a_df)
 
     def shutdown(self):
         # need persist dataframe if changed since loaded frmo index.
-        if self.initial_df_time == self.recent_df_time:
-            print("no change in booksd dataframe.")
-            return
+        sharevars.global_lib_data.save()
 
-        print('Save changed books dataframe.')
-        self.df.to_pickle(self.lib_index_file)
-
+    '''
     def rename_title(self, from_title, surfix, size, folder, to_title):
-        '''
+        '' '
             scan book dataframe, replace title field when matched.
             also need update tag_file_dict
-        '''
+        '' '
 
         # !!!!! this change based on only on filename without surfix. so it will rush ahead of the real change
         # for the rest of files with same name but different surfix, or in different folders. 
@@ -202,12 +201,11 @@ class AllBookTreeView(BookTreeView):
         for index in match_indexes:
             self.df.at[index, 'title'] = to_title
             #  df.at[df[df[0]==5].index[0],0] = 15
-
-        self.recent_df_time = datetime.datetime.now()
+    '''
 
     @staticmethod
     def merge_book_index_dataframe(lib_index_file, lib_dir, book_df):
-        the_list = AllBookTreeView.rec_read_folder(lib_dir)
+        the_list = library_data.LibraryData.rec_read_folder(lib_dir)
         new_part_book_df = pd.DataFrame(the_list)
         new_part_book_df.columns = ['title', 'folder', 'filename', 
                 'surfix', 'authors', 'size', 'mod_date' ]
@@ -222,50 +220,6 @@ class AllBookTreeView(BookTreeView):
         true_new_part_book_df = new_part_book_df.loc[lambda df: df['filename'].apply(func_get_true_new)]
 
         # now merge new_part_book_df with book_df
-        return pd.concat([book_df, true_new_part_book_df],
-                ignore_index=True)
+        return pd.concat([book_df, true_new_part_book_df], ignore_index=True)
 
 
-    @staticmethod
-    def get_gen_book_index_dataframe(lib_index_file, lib_dir):
-        if os.path.exists(lib_index_file):
-            start = datetime.datetime.now()
-            book_df = pd.read_pickle(lib_index_file)
-            print('load index time:', datetime.datetime.now() - start)
-            print('Index contains books:', len(book_df.index))
-        else:
-            the_list = AllBookTreeView.rec_read_folder(lib_dir)
-            book_df = pd.DataFrame(the_list)
-            book_df.to_pickle(lib_index_file)
-  
-        book_df.columns = ['title', 'folder', 'filename', 
-                    'surfix', 'authors', 'size', 'mod_date' ]
-        book_df.sort_values(['filename'], inplace=True, ascending=True)
-
-        '''
-        # print(book_df['folder'])
-        # print(book_df['folder'] == '.\\library\\0110')
-        in_folder_df = book_df[book_df['folder'] == '.\\library\\0110']
-        file_list = in_folder_df['filename'].to_list()
-        for idx, file in enumerate(file_list):
-            print(file)
-        '''
-        
-        return book_df
-
-    @staticmethod
-    def rec_read_folder(folder):
-        all_file_info = []
-        start = datetime.datetime.now()
-        
-        print("Walk in folder", folder)
-        res = os.walk(folder)
-        for root, dirs, files in res:
-            for filename in files:
-                fstat = os.stat(os.path.join(root, filename))
-                name, surfix = auxi.get_name_surfix(filename)
-                all_file_info.append((name, root, filename, surfix, "", fstat.st_size, auxi.get_date(fstat.st_mtime)))
-        dur = datetime.datetime.now() - start
-        print("Folder scan time:", dur)
-
-        return all_file_info

@@ -53,7 +53,14 @@ def change_file_names():
                 ))
                 continue
 
-            os.rename(old_path, new_path)
+            # need change LibraryData accordingly. 
+            if sharevars.global_lib_data.rename_file_in_df_entry(old_path, new_path):
+                os.rename(old_path, new_path)
+            else:
+                print("Skip. There would be duplicate file name if renamed!-->{fn}".format(
+                    fn=new_path
+                ))
+            
         except OSError as e:
             print(e)
 
