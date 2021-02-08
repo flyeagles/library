@@ -104,16 +104,16 @@ def move_from_to(from_folder, to_folder, delidentical, movezip, need_recursive):
                     continue
                 
                 # need move.
-                start_fid, file_count = lib_data.get_folder_id_count()
+                start_fid, file_count = sharevars.global_lib_data.get_folder_id_count()
                 folder_name = '{:04d}'.format(start_fid)
                 new_file_path = os.path.join(to_folder, folder_name, a_file)
                 if os.path.exists(new_file_path):
                     print("====Found targt file existing! {f}".format(f=new_file_path))
                 else:
                     # os.renames(os.path.join(root, a_file), new_file_path)
-                    file_mod_time = os.path.getmtime(old_file_path)
                     try:
                         old_file_path = os.path.join(root, a_file)
+                        file_mod_time = os.path.getmtime(old_file_path)
                         os.chmod(old_file_path, S_IWRITE)   # always make old file writable to enable move
                         shutil.move(old_file_path, new_file_path) # this support cross-disk move.
                         os.chmod(new_file_path, S_IREAD)

@@ -95,21 +95,22 @@ class LibraryData:
 
     def __init__(self, to_folder):
         self.to_folder = to_folder
-        self.target_folder_data = LibraryData._get_target_folder_files(self.to_folder)
+        self.file_stats, self.fid, self.fcount, self.size_index = \
+                LibraryData._get_target_folder_files(self.to_folder)
         self.library_df = LibraryData.get_gen_book_index_dataframe(LibraryData.lib_index_file, self.to_folder)
         self.initial_time = datetime.datetime.now()
         self.last_mod_time = self.initial_time
 
     def get_target_folder_files(self):
-        return self.target_folder_data
+        return self.file_stats, self.fid, self.fcount, self.size_index
 
     def get_library_df(self):
         return self.library_df
 
     def get_folder_id_count(self):
-        new_fid, new_count = DataForMoveCheck.get_folder_id_count(self.target_folder_data[1], self.target_folder_data[2])
-        self.target_folder_data[1] = new_fid
-        self.target_folder_data[2] = new_count
+        new_fid, new_count = DataForMoveCheck.get_folder_id_count(self.fid, self.fcount)
+        self.fid = new_fid
+        self.fcount = new_count
         return new_fid, new_count
 
     def save(self):
@@ -117,7 +118,7 @@ class LibraryData:
             print("no change in library data.")
             return
 
-        LibraryData._save_target_folder_data(self.target_folder_data)
+        LibraryData._save_target_folder_data((self.file_stats, self.fid, self.fcount, self.size_index))
 
         print('Save changed books dataframe.')
         self.library_df.to_pickle(LibraryData.lib_index_file)
@@ -137,9 +138,9 @@ class LibraryData:
 
     def add_file_to_lib(self, to_folder, folder_name, this_size, a_file, file_mod_time):
         new_file_path = str(os.path.join(to_folder, folder_name))
-        self.target_folder_data[0][a_file] = (this_size, new_file_path)
+        self.file_stats[a_file] = (this_size, new_file_path)
 
-        DataForMoveCheck._add_size_data_to_index(self.target_folder_data[3], this_size, a_file, new_file_path)
+        DataForMoveCheck._add_size_data_to_index(self.size_index, this_size, a_file, new_file_path)
 
         # add item to data frame
         self.library_df = LibraryData._add_file_to_df(self.library_df, a_file, new_file_path, this_size, file_mod_time)
@@ -165,7 +166,7 @@ class LibraryData:
 
     def rename_file_for_move_entry(self, old_file_name, new_file_name, this_size):
         if self.rename_file_for_move_only(old_file_name, new_file_name, this_size):
-            bothpath = self.target_folder_data[0][new_file_name][1]
+            bothpath = self.file_stats[new_file_name][1]
             old_full_name = os.path.join(bothpath, old_file_name)
             new_full_name = os.path.join(bothpath, new_file_name)
             self.rename_file_in_df_only(old_full_name, new_full_name)
@@ -175,11 +176,8 @@ class LibraryData:
 
 
     def rename_file_for_move_only(self, old_file_name, new_file_name, this_size):
-        files_in_lib = self.target_folder_data[0]
-        size_index = self.target_folder_data[3]
-        if DataForMoveCheck.rename_file(files_in_lib, old_file_name, new_file_name, size_index, this_size):
+        if DataForMoveCheck.rename_file(self.file_stats, old_file_name, new_file_name, self.size_index, this_size):
             # need change dataframe too
-            
             self.last_mod_time = datetime.datetime.now()
             return True
 
@@ -188,7 +186,7 @@ class LibraryData:
     def rename_file_in_df_entry(self, old_full_name, new_full_name):
         _, old_file_name = os.path.split(old_full_name)
         _, new_file_name = os.path.split(new_full_name)
-        this_size = self.target_folder_data[0][old_file_name][0]
+        this_size = self.file_stats[old_file_name][0]
         if not self.rename_file_for_move_only(old_file_name, new_file_name, this_size):
             print("Cannot rename title ")
             return False
@@ -215,10 +213,10 @@ class LibraryData:
         match_indexes = self.library_df[self.library_df['title']==old_title].index
         for index in match_indexes:
             self.library_df.at[index, 'title'] = new_title
+            self.library_df.at[index, 'filename'] = new_title + '.' + self.library_df.at[index, 'surfix']
             #  df.at[df[df[0]==5].index[0],0] = 15
 
         self.recent_df_time = datetime.datetime.now()
-
 
     @staticmethod
     def get_gen_book_index_dataframe(lib_index_file, lib_dir):
